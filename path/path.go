@@ -22,7 +22,7 @@ func GetUserHomeDir() string {
 	return os.Getenv("HOME")
 }
 
-func GetFullName(path string) string {
+func GetFullPath(path string) string {
 
 	// empty path
 	if path == "" || path == "." {
