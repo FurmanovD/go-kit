@@ -2,6 +2,7 @@ package s3client
 
 import "time"
 
+// S3Client is a client for AWS S3 storage.
 type S3Client interface {
 	CreateBucket(bucket string) (string, error)
 	Exists(obj S3ObjectPath) (bool, error)

@@ -1,3 +1,4 @@
+// Package s3client is a wrapper around the AWS S3 connection.
 package s3client
 
 import (
@@ -14,10 +15,11 @@ import (
 )
 
 const (
-	DefaultMultipartChunkSize int64 = 1024 * 1024 * 100 // 100Mb chunk for multipart upload by default
+	// DefaultMultipartChunkSize is the max size of a multipart chunk.
+	DefaultMultipartChunkSize int64 = 1024 * 1024 * 100 // 100Mb chunk for multipart upload by default.
 
-	awsErrNotFound               = "NotFound"             // AWS wide constant
-	awsSinglePartCopyLimit int64 = 1024 * 1024 * 1024 * 4 // limit a single-chunk upload by to 4Gb
+	awsErrNotFound               = "NotFound"             // AWS wide constant.
+	awsSinglePartCopyLimit int64 = 1024 * 1024 * 1024 * 4 // limit a single-chunk upload by to 4Gb.
 
 	payerRequester = "requester"
 )
@@ -26,14 +28,14 @@ type s3Client struct {
 	awsS3 *s3.S3
 }
 
-// NewClientFromS3 sets the AWS S3 connection and returns an S3Client interface
+// NewClientFromS3 sets the AWS S3 connection and returns an S3Client interface.
 func NewClientFromS3(awsS3client *s3.S3) S3Client {
 	return &s3Client{
 		awsS3: awsS3client,
 	}
 }
 
-// Connection returns an AWS S3 connection that was used when creating the object
+// Connection returns an AWS S3 connection that was used when creating the object.
 func (c *s3Client) Connection() *s3.S3 {
 	return c.awsS3
 }
@@ -44,16 +46,18 @@ func (c *s3Client) CreateBucket(bucket string) (string, error) {
 		Bucket: aws.String(bucket),
 	})
 	if err != nil {
-		awsErr, ok := err.(awserr.RequestFailure)
-		if ok && awsErr.StatusCode() == 409 /*already exists*/ {
+		var awsErr awserr.RequestFailure
+		if ok := errors.As(err, &awsErr); ok && awsErr.StatusCode() == 409 /*already exists*/ {
 			return "/" + bucket, nil
 		}
+
 		return "", err
 	}
+
 	return *bckt.Location, nil
 }
 
-// Get returns an S3 object in a byte array view
+// Get returns an S3 object in a byte array view.
 func (c *s3Client) GetObject(path S3ObjectPath, callerPays bool) ([]byte, error) {
 	params := &s3.GetObjectInput{
 		Bucket: aws.String(path.Bucket),
@@ -72,7 +76,7 @@ func (c *s3Client) GetObject(path S3ObjectPath, callerPays bool) ([]byte, error)
 	return ioutil.ReadAll(resp.Body)
 }
 
-// GetSize returns a size in bytes of the object
+// GetSize returns a size in bytes of the object.
 func (c *s3Client) GetSize(obj S3ObjectPath, callerPays bool) (int64, error) {
 	params := &s3.HeadObjectInput{
 		Bucket: aws.String(obj.Bucket),
@@ -87,10 +91,11 @@ func (c *s3Client) GetSize(obj S3ObjectPath, callerPays bool) (int64, error) {
 	if err != nil {
 		return -1, err
 	}
+
 	return *head.ContentLength, nil
 }
 
-// Exists returns true if S3 object exists
+// Exists returns true if S3 object exists.
 func (c *s3Client) Exists(obj S3ObjectPath) (bool, error) {
 	headParams := &s3.HeadObjectInput{
 		Bucket: aws.String(obj.Bucket),
@@ -99,17 +104,20 @@ func (c *s3Client) Exists(obj S3ObjectPath) (bool, error) {
 
 	_, err := c.awsS3.HeadObject(headParams)
 	if err != nil {
-		if awsErr, ok := err.(awserr.Error); ok {
+		var awsErr awserr.Error
+		if ok := errors.As(err, &awsErr); ok {
 			if awsErr.Code() == awsErrNotFound {
 				return false, nil
 			}
 		}
+
 		return false, err
 	}
+
 	return true, nil
 }
 
-// Delete deletes an S3 object
+// Delete deletes an S3 object.
 func (c *s3Client) Delete(obj S3ObjectPath) error {
 	params := &s3.DeleteObjectInput{
 		Bucket: aws.String(obj.Bucket),
@@ -117,28 +125,28 @@ func (c *s3Client) Delete(obj S3ObjectPath) error {
 	}
 
 	_, err := c.awsS3.DeleteObject(params)
-
 	if err != nil {
-		if awsErr, ok := err.(awserr.Error); ok {
+		var awsErr awserr.Error
+		if ok := errors.As(err, &awsErr); ok {
 			if awsErr.Code() == awsErrNotFound {
 				return nil
 			}
 		}
+
 		return err
 	}
+
 	return nil
 }
 
 // Copy copies source to destination and checks if required the result integrity
-// by comparing an ETag of source and destination
+// by comparing an ETag of source and destination.
 func (c *s3Client) Copy(src, dst S3ObjectPath, validateEtag, callerPays bool) error {
-
 	return c.copyObject(src, dst, validateEtag, callerPays)
 }
 
-// copyObject copies source to destination
+// copyObject copies source to destination.
 func (c *s3Client) copyObject(src, dst S3ObjectPath, validateEtag bool, callerPays bool) error {
-
 	srcSize, err := c.GetSize(src, callerPays)
 	if err != nil {
 		return err
@@ -174,8 +182,11 @@ func (c *s3Client) copyObject(src, dst S3ObjectPath, validateEtag bool, callerPa
 		return err
 	}
 
-	if validateEtag {
+	return validateCopyResult(validateEtag, eTag, copyResult)
+}
 
+func validateCopyResult(validateEtag bool, eTag string, copyResult *s3.CopyObjectOutput) error {
+	if validateEtag {
 		if copyResult == nil ||
 			copyResult.CopyObjectResult == nil ||
 			copyResult.CopyObjectResult.ETag == nil {
@@ -193,7 +204,7 @@ func (c *s3Client) copyObject(src, dst S3ObjectPath, validateEtag bool, callerPa
 	return nil
 }
 
-// IsSrcNewer returns true if source exist and newer thad destination, or when destination does not exist
+// IsSrcNewer returns true if source exist and newer thad destination, or when destination does not exist.
 func (c *s3Client) IsSrcNewer(src, dst S3ObjectPath, callerPays bool) (bool, error) {
 	headParams := &s3.HeadObjectInput{
 		Bucket: aws.String(src.Bucket),
@@ -208,7 +219,7 @@ func (c *s3Client) IsSrcNewer(src, dst S3ObjectPath, callerPays bool) (bool, err
 		return false, fmt.Errorf("can not query source head %v : %w", src, err)
 	}
 
-	// check destination
+	// check destination.
 	headParams = &s3.HeadObjectInput{
 		Bucket: aws.String(dst.Bucket),
 		Key:    aws.String(dst.Key),
@@ -216,22 +227,19 @@ func (c *s3Client) IsSrcNewer(src, dst S3ObjectPath, callerPays bool) (bool, err
 
 	headDst, err := c.awsS3.HeadObject(headParams)
 	if err != nil {
-		if awsErr, ok := err.(awserr.Error); ok {
-			if awsErr.Code() == awsErrNotFound {
-				return true, nil
-			}
+		var awsErr awserr.Error
+		if ok := errors.As(err, &awsErr); ok && awsErr.Code() == awsErrNotFound {
+			return true, nil
 		}
+
 		return false, fmt.Errorf("error querying head %v : %w", dst, err)
 	}
 
-	res := headSrc.LastModified.After(*headDst.LastModified)
-
-	return res, nil
+	return headSrc.LastModified.After(*headDst.LastModified), nil
 }
 
-// GetPresignedURL returns an S3 presigned URL for the given key
+// GetPresignedURL returns an S3 presigned URL for the given key.
 func (c *s3Client) GetPresignedURL(obj S3ObjectPath, duration time.Duration) (string, error) {
-
 	req, _ := c.awsS3.GetObjectRequest(&s3.GetObjectInput{
 		Bucket: aws.String(obj.Bucket),
 		Key:    aws.String(obj.Key),
@@ -240,9 +248,8 @@ func (c *s3Client) GetPresignedURL(obj S3ObjectPath, duration time.Duration) (st
 	return req.Presign(duration)
 }
 
-// GetPresignedURL returns an S3 presigned URL for the given key
+// GetPresignedURL returns an S3 presigned URL for the given key.
 func (c *s3Client) GetETag(obj S3ObjectPath) (string, error) {
-
 	headInput := &s3.HeadObjectInput{
 		Bucket: aws.String(obj.Bucket),
 		Key:    aws.String(obj.Key),
@@ -252,6 +259,7 @@ func (c *s3Client) GetETag(obj S3ObjectPath) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error querying head for ETag %v : %w", obj, err)
 	}
+
 	if result.ETag == nil {
 		return "", fmt.Errorf("head returned a nil ETag %v", obj)
 	}
@@ -259,19 +267,19 @@ func (c *s3Client) GetETag(obj S3ObjectPath) (string, error) {
 	return *result.ETag, nil
 }
 
-// completedParts a utility type used to sort completed parts in a multipart upload
+// completedParts a utility type used to sort completed parts in a multipart upload.
 type completedParts []*s3.CompletedPart
 
 func (a completedParts) Len() int           { return len(a) }
 func (a completedParts) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a completedParts) Less(i, j int) bool { return *a[i].PartNumber < *a[j].PartNumber }
 
+// nolint:funlen
 func (c *s3Client) copyMultipartInt(
 	src, dst S3ObjectPath,
 	srcSize int64,
 	chunkSize int64,
 	callerPays bool) error {
-
 	multipartParams := &s3.CreateMultipartUploadInput{
 		Bucket: aws.String(dst.Bucket),
 		Key:    aws.String(dst.Key),
@@ -288,7 +296,7 @@ func (c *s3Client) copyMultipartInt(
 	defer close(errCh)
 	parts := 0
 
-	var bytePosition int64 = 0
+	var bytePosition int64
 	var wg sync.WaitGroup
 	for i := int64(1); bytePosition < srcSize; i++ {
 		endRange := bytePosition + chunkSize - 1
@@ -328,7 +336,7 @@ func (c *s3Client) copyMultipartInt(
 		parts++
 	}
 
-	// wait until all parts are uploaded
+	// wait until all parts are uploaded.
 	wg.Wait()
 
 	errStr := ""
@@ -346,7 +354,7 @@ func (c *s3Client) copyMultipartInt(
 	for i := 0; i < parts; i++ {
 		partsArr[i] = <-resCh
 	}
-	sort.Sort(completedParts(partsArr))
+	sort.Sort(partsArr)
 
 	completedUpload := &s3.CompletedMultipartUpload{
 		Parts: partsArr,
