@@ -1,7 +1,6 @@
 package s3client
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 )
@@ -10,14 +9,14 @@ const (
 	s3Schema = "s3://"
 )
 
-// S3ObjectPath contains a ful path to a bucket object.
-type S3ObjectPath struct {
+// S3Path contains a ful path to a bucket object.
+type S3Path struct {
 	Bucket string
 	Key    string
 }
 
 // NewS3Object creates a path object from a path: [bucket]/[key].
-func NewS3Object(path string) (S3ObjectPath, error) {
+func NewS3Object(path string) (S3Path, error) {
 	fullPath := path
 	if strings.HasPrefix(strings.ToLower(path), s3Schema) {
 		fullPath = path[5:]
@@ -25,25 +24,25 @@ func NewS3Object(path string) (S3ObjectPath, error) {
 
 	bucketIdx := strings.Index(fullPath, "/")
 	if bucketIdx == -1 {
-		return S3ObjectPath{}, errors.New("no bucket separator in S3 path")
+		return S3Path{}, ErrPathNoBucketSeparator
 	}
 
 	if bucketIdx >= len(fullPath)-1 {
-		return S3ObjectPath{}, errors.New("bucket with no key in S3 path")
+		return S3Path{}, ErrPathEmptyPath
 	}
 
-	return S3ObjectPath{
+	return S3Path{
 		Bucket: fullPath[:bucketIdx],
 		Key:    fullPath[bucketIdx+1:],
 	}, nil
 }
 
 // Path returns an S3 path constructed.
-func (p *S3ObjectPath) Path() string {
+func (p *S3Path) Path() string {
 	return fmt.Sprintf("%v/%v", p.Bucket, p.Key)
 }
 
 // FullPath returns a full S3 path constructed including the schema.
-func (p *S3ObjectPath) FullPath() string {
+func (p *S3Path) FullPath() string {
 	return fmt.Sprintf("%s%v/%v", s3Schema, p.Bucket, p.Key)
 }
