@@ -6,9 +6,11 @@ import (
 )
 
 // NotNilRnd returns a not nil random generator: the source or creates a new.
-func NotNilRnd(r *rand.Rand) *rand.Rand {
-	if r == nil {
-		return rand.New(rand.NewSource(time.Now().UnixNano()))
+func NotNilRnd(rnd *rand.Rand) *rand.Rand {
+	if rnd != nil {
+		return rnd
 	}
-	return r
+
+	// nolint:gosec
+	return rand.New(rand.NewSource(time.Now().UnixNano()))
 }

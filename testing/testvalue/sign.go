@@ -14,6 +14,7 @@ func Pos[T NumberPosNeg](n T) T {
 }
 
 func Neg[T NumberPosNeg](n T) T {
+	// nolint:typecheck
 	return -Pos(n)
 }
 

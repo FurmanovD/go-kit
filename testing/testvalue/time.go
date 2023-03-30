@@ -16,6 +16,7 @@ func MustTime(in string) time.Time {
 // MustTimePtr parses a time string of format RFC3339 and returns a pointer to a time.
 // Panics if fails.
 func MustTimePtr(in string) *time.Time {
+	// nolint:typecheck
 	return Ptr(MustTime(in))
 }
 

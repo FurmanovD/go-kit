@@ -23,21 +23,6 @@ func NilOrTime(nilPercent int, isPast bool) *time.Time {
 	return &now
 }
 
-func NilOrTimePtr(nilPercent int, isPast bool) *time.Time {
-	if returnNil(nilPercent) {
-		return nil
-	}
-
-	now := time.Now().UTC()
-	timeDiff := time.Duration(rand.Intn(365*24)) * time.Hour
-	if isPast {
-		now.Add(-timeDiff)
-	} else {
-		now.Add(timeDiff)
-	}
-	return &now
-}
-
 func NilOrBool(nilPercent int) *bool {
 	if returnNil(nilPercent) {
 		return nil

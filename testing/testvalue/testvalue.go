@@ -13,6 +13,7 @@ func NonEmptyNaturalIntSlice(nums []int) []int {
 		return []int{3}
 	}
 	for i, n := range nums {
+		// nolint:typecheck
 		nums[i] = Pos(n)
 	}
 	return nums
