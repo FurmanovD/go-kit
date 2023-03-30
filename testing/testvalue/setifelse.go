@@ -1,13 +1,7 @@
 package testvalue
 
-func SetIfElseString(cond bool, valTrue, valFalse string) string {
-	if cond {
-		return valTrue
-	}
-	return valFalse
-}
-
-func SetIfElseInt(cond bool, valTrue, valFalse int) int {
+// IfElse returns the value of the valTrue if the condition is true and returns valFalse otherwise.
+func IfElse[T comparable](cond bool, valTrue, valFalse T) T {
 	if cond {
 		return valTrue
 	}
