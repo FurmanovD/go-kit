@@ -21,7 +21,7 @@ const (
 )
 
 var (
-	totalUTF8Printable int = totalInRange(unicode.GraphicRanges)
+	totalUTF8Printable = totalInRange(unicode.GraphicRanges)
 )
 
 // FromSet returns a random string built of runes from a set provided
@@ -164,7 +164,7 @@ func ToRandomCase(input string, rnd *rand.Rand) string {
 	}
 }
 
-/// Returns the nth item contained in the array of ranges.
+// / Returns the nth item contained in the array of ranges.
 func getItemFromRangeTable(n int, tables []*unicode.RangeTable) (int, error) {
 	nPointer := n
 	var picked int
@@ -200,9 +200,9 @@ func getItemFromRangeTable(n int, tables []*unicode.RangeTable) (int, error) {
 
 	if found {
 		return picked, nil
-	} else {
-		return -1, errors.New("Value not found in range")
 	}
+
+	return -1, errors.New("value not found in range")
 }
 
 // Counts the total number of items contained in the array of ranges.

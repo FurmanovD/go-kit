@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-redis/redis"
 	"github.com/go-redis/redis/v8"
 )
 
@@ -22,22 +21,22 @@ type lockInfo struct {
 }
 
 type redisLocker struct {
-	mutex  sync.Mutex
-	redis  *redis.Client
-	locked *lockInfo // saves all info to unlock. != nil means locked state
+	mutex   sync.Mutex
+	rclient *redis.Client
+	locked  *lockInfo // saves all info to unlock. != nil means locked state
 	//TODO(DF) possibly add a lock-count to allow the same locker lock the same key, e.g. to extend a lock TTL
 }
 
 func NewRedisLocker(c *redis.Client) RedisLock {
 	return &redisLocker{
-		redis: c,
+		rclient: c,
 	}
 }
 
 // Locks a redis record by creating a key with special name or returns an AlreadyLocked if such a key already exists
 func (rl *redisLocker) Lock(ctx context.Context, key string, ttl time.Duration) RedisLockError {
 
-	if rl == nil || rl.redis == nil {
+	if rl == nil || rl.rclient == nil {
 		return Uninitialized
 	}
 
@@ -60,7 +59,7 @@ func (rl *redisLocker) ObtainLock(
 	retryPeriod time.Duration,
 ) RedisLockError {
 
-	if rl == nil || rl.redis == nil {
+	if rl == nil || rl.rclient == nil {
 		return Uninitialized
 	}
 
@@ -90,7 +89,7 @@ func (rl *redisLocker) ObtainLock(
 
 func (rl *redisLocker) Unlock() RedisLockError {
 
-	if rl == nil || rl.redis == nil {
+	if rl == nil || rl.rclient == nil {
 		return Uninitialized
 	}
 
@@ -98,7 +97,7 @@ func (rl *redisLocker) Unlock() RedisLockError {
 	defer rl.mutex.Unlock()
 
 	if rl.locked != nil && rl.locked.Key != "" {
-		rl.redis.Del(rl.locked.Ctx, rl.locked.Key)
+		rl.rclient.Del(rl.locked.Ctx, rl.locked.Key)
 	}
 	rl.locked = nil
 
@@ -118,7 +117,7 @@ func (rl *redisLocker) tryLock(ctx context.Context, key string, ttl time.Duratio
 		return Ok
 	}
 
-	if setRes := rl.redis.SetNX(ctx, lockKey, lockValue, ttl); setRes.Val() {
+	if setRes := rl.rclient.SetNX(ctx, lockKey, lockValue, ttl); setRes.Val() {
 		rl.locked = &lockInfo{
 			Key: lockKey,
 			Ctx: ctx,

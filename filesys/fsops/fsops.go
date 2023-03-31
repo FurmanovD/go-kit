@@ -97,7 +97,7 @@ func copyFolderInt(source string, dest string, levels int, deletesource bool) er
 	}
 	srcName := srcstat.Name()
 
-	//build dest:
+	// build dest:
 	fullDest := filepath.Join(dest, srcName)
 	if _, err = os.Stat(fullDest); os.IsNotExist(err) {
 		err = os.MkdirAll(fullDest, os.ModeDir|os.ModePerm)
@@ -127,7 +127,7 @@ func CopyFolderContentLevels(source string, dest string, levelsDeeper int) error
 
 func copyFolderContentInt(source string, dest string, levelsDeeper int, deletesource bool) error {
 
-	//check dirs:
+	// check dirs:
 	var err error
 	if _, err = os.Stat(source); os.IsNotExist(err) {
 		return err
@@ -143,9 +143,9 @@ func copyFolderContentInt(source string, dest string, levelsDeeper int, deleteso
 		sourcefilepointer := source + "/" + obj.Name()
 		destinationfilepointer := dest + "/" + obj.Name()
 		if obj.IsDir() {
-			if 0 > levelsDeeper { //recursively all
+			if 0 > levelsDeeper { // recursively all
 				err = copyFolderInt(sourcefilepointer, destinationfilepointer, levelsDeeper, deletesource)
-			} else if 1 <= levelsDeeper { //some levels only - continue
+			} else if 1 <= levelsDeeper { // some levels only - continue
 				err = copyFolderInt(sourcefilepointer, destinationfilepointer, levelsDeeper-1, deletesource)
 			} else {
 				// 0 == levelsDeeper - means "do not copy next levels"
@@ -201,9 +201,9 @@ func MoveFolder(source string, dest string) error {
 		return fmt.Errorf("%s source is not a directory or inaccessible", source)
 	}
 
-	if filepath.VolumeName(source) == filepath.VolumeName(dest) { //on the same disk
+	if filepath.VolumeName(source) == filepath.VolumeName(dest) { //on the same disk // TODO switch those if and else.
 		if strings.HasPrefix(dest, source) {
-			return fmt.Errorf("Directory %s cannot be moved to a nested directory %s", source, dest)
+			return fmt.Errorf("directory %s cannot be moved to a nested directory %s", source, dest)
 		}
 
 		if !IsDir(dest) {
@@ -218,14 +218,14 @@ func MoveFolder(source string, dest string) error {
 			return err
 		}
 		srcName := srcstat.Name()
-		//build dest:
+		// build dest:
 		fullDest := filepath.Join(dest, srcName)
 		return os.Rename(source, fullDest)
 
-	} else {
-		// Different disks:
-		return copyFolderInt(source, dest, -1, true)
 	}
+
+	// Different disks:
+	return copyFolderInt(source, dest, -1, true)
 }
 
 // MoveFile moves a folder's content only
@@ -235,30 +235,30 @@ func MoveFile(source string, dest string) error {
 		return fmt.Errorf("%s source is not a file or inaccessible", source)
 	}
 
-	if filepath.VolumeName(source) == filepath.VolumeName(dest) { //on the same disk
+	if filepath.VolumeName(source) == filepath.VolumeName(dest) { //on the same disk // TODO switch those if and else.
 		if strings.HasPrefix(dest, source) {
-			return fmt.Errorf("File %s cannot be moved to directory %s - destination directory can not be created", source, dest)
+			return fmt.Errorf("file %s cannot be moved to directory %s - destination directory can not be created", source, dest)
 		}
 		return os.Rename(source, dest)
-	} else {
-		// Different disks:
-		return copyFileInt(source, dest, true)
 	}
+
+	// Different disks:
+	return copyFileInt(source, dest, true)
 }
 
 // GetFilename returns a filename
 func GetFilename(fullfilename string, withExt bool) string {
 	dir := filepath.Dir(fullfilename)
-	filename_wExt, err := stringtools.GetSubstring(fullfilename, dir, "")
+	filenameWithExt, err := stringtools.GetSubstring(fullfilename, dir, "")
 	if nil != err {
 		return ""
 	}
-	if withExt || !strings.Contains(filename_wExt, ".") {
-		return filename_wExt[1 : len(filename_wExt)-1]
+	if withExt || !strings.Contains(filenameWithExt, ".") {
+		return filenameWithExt[1 : len(filenameWithExt)-1]
 	}
 
-	filename_woExt := filename_wExt[1:strings.LastIndex(filename_wExt, ".")]
-	return filename_woExt
+	filenameWithoutExt := filenameWithExt[1:strings.LastIndex(filenameWithExt, ".")]
+	return filenameWithoutExt
 }
 
 func IsFileContains(fpath string, test []byte) bool {
