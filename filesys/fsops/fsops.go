@@ -41,14 +41,14 @@ func copyFileInt(src, dst string, deletesrc bool) error {
 			return err
 		}
 	}
-	// if err = os.Link(src, dst); err == nil {
-	// 	return err
-	// }
-	//TODO: in case "delete original" == true and src and dest are on the same volume - use os.Rename()
+
+	// TODO: in case "delete original" == true and src and dest are on the same volume - use os.Rename()
+
 	res := copyFileContents(src, dst)
 	if deletesrc {
 		os.Remove(src)
 	}
+
 	return res
 }
 
@@ -62,6 +62,7 @@ func copyFileContents(src, dst string) error {
 		return err
 	}
 	defer in.Close()
+
 	out, err := os.Create(dst)
 	if err != nil {
 		return err
@@ -72,19 +73,21 @@ func copyFileContents(src, dst string) error {
 			err = cerr
 		}
 	}()
+
 	if _, err = io.Copy(out, in); err != nil {
 		return err
 	}
-	err = out.Sync()
+	err = out.Sync() // its required to be sure defer functions are called.
+
 	return err
 }
 
-// CopyFolder copies a folder's content to a (new one) another one
+// CopyFolder copies a folder's content to a (new one) another one.
 func CopyFolder(source string, dest string) error {
 	return copyFolderInt(source, dest, -1, false)
 }
 
-// CopyFolderLevels copies a folder's content to a (new one) another one
+// CopyFolderLevels copies a folder's content to a (new one) another one.
 func CopyFolderLevels(source string, dest string, levels int) error {
 	return copyFolderInt(source, dest, levels, false)
 }
@@ -115,19 +118,19 @@ func copyFolderInt(source string, dest string, levels int, deletesource bool) er
 	return err
 }
 
-// CopyFolderContent copies a folder's content only
+// CopyFolderContent copies a folder's content only.
 func CopyFolderContent(source string, dest string) error {
 	return copyFolderContentInt(source, dest, -1, false)
 }
 
-// CopyFolderContentLevels copies a folder's content only
+// CopyFolderContentLevels copies a folder's content only.
 func CopyFolderContentLevels(source string, dest string, levelsDeeper int) error {
 	return copyFolderContentInt(source, dest, levelsDeeper, false)
 }
 
 func copyFolderContentInt(source string, dest string, levelsDeeper int, deletesource bool) error {
 
-	// check dirs:
+	// check dirs.
 	var err error
 	if _, err = os.Stat(source); os.IsNotExist(err) {
 		return err
@@ -143,12 +146,12 @@ func copyFolderContentInt(source string, dest string, levelsDeeper int, deleteso
 		sourcefilepointer := source + "/" + obj.Name()
 		destinationfilepointer := dest + "/" + obj.Name()
 		if obj.IsDir() {
-			if 0 > levelsDeeper { // recursively all
+			if 0 > levelsDeeper { // recursively all.
 				err = copyFolderInt(sourcefilepointer, destinationfilepointer, levelsDeeper, deletesource)
-			} else if 1 <= levelsDeeper { // some levels only - continue
+			} else if 1 <= levelsDeeper { // some levels only - continue.
 				err = copyFolderInt(sourcefilepointer, destinationfilepointer, levelsDeeper-1, deletesource)
 			} else {
-				// 0 == levelsDeeper - means "do not copy next levels"
+				// 0 == levelsDeeper - means "do not copy next levels".
 				// Do nothing
 			}
 			if deletesource {
@@ -194,56 +197,59 @@ func IsFile(path string) bool {
 	return !fi.IsDir()
 }
 
-// MoveFolder moves a folder's content only
+// MoveFolder moves a folder's content only.
 func MoveFolder(source string, dest string) error {
-	//Check is Dir:
+	// check is dir.
 	if !IsDir(source) {
 		return fmt.Errorf("%s source is not a directory or inaccessible", source)
 	}
 
-	if filepath.VolumeName(source) == filepath.VolumeName(dest) { //on the same disk // TODO switch those if and else.
-		if strings.HasPrefix(dest, source) {
-			return fmt.Errorf("directory %s cannot be moved to a nested directory %s", source, dest)
-		}
-
-		if !IsDir(dest) {
-			errmake := os.MkdirAll(dest, os.ModeDir|os.ModePerm)
-			if errmake != nil {
-				return errmake
-			}
-		}
-
-		srcstat, err := os.Stat(source)
-		if err != nil {
-			return err
-		}
-		srcName := srcstat.Name()
-		// build dest:
-		fullDest := filepath.Join(dest, srcName)
-		return os.Rename(source, fullDest)
-
+	if filepath.VolumeName(source) != filepath.VolumeName(dest) {
+		// different disks.
+		return copyFolderInt(source, dest, -1, true)
 	}
 
-	// Different disks:
-	return copyFolderInt(source, dest, -1, true)
+	// on the same disk.
+	if strings.HasPrefix(dest, source) {
+		return fmt.Errorf("directory %s cannot be moved to a nested directory %s", source, dest)
+	}
+
+	if !IsDir(dest) {
+		errmake := os.MkdirAll(dest, os.ModeDir|os.ModePerm)
+		if errmake != nil {
+			return errmake
+		}
+	}
+
+	srcstat, err := os.Stat(source)
+	if err != nil {
+		return err
+	}
+	srcName := srcstat.Name()
+	// build dest.
+	fullDest := filepath.Join(dest, srcName)
+
+	return os.Rename(source, fullDest)
 }
 
-// MoveFile moves a folder's content only
+// MoveFile moves a folder's content only.
 func MoveFile(source string, dest string) error {
-	//Check is File:
+	// check is file.
 	if !IsFile(source) {
 		return fmt.Errorf("%s source is not a file or inaccessible", source)
 	}
 
-	if filepath.VolumeName(source) == filepath.VolumeName(dest) { //on the same disk // TODO switch those if and else.
-		if strings.HasPrefix(dest, source) {
-			return fmt.Errorf("file %s cannot be moved to directory %s - destination directory can not be created", source, dest)
-		}
-		return os.Rename(source, dest)
+	if filepath.VolumeName(source) == filepath.VolumeName(dest) {
+		// different disks.
+		return copyFileInt(source, dest, true)
 	}
 
-	// Different disks:
-	return copyFileInt(source, dest, true)
+	// on the same disk.
+	if strings.HasPrefix(dest, source) {
+		return fmt.Errorf("file %s cannot be moved to directory %s - destination directory can not be created", source, dest)
+	}
+
+	return os.Rename(source, dest)
 }
 
 // GetFilename returns a filename
@@ -268,7 +274,7 @@ func IsFileContains(fpath string, test []byte) bool {
 	}
 	in.Close()
 
-	if 0 == len(test) {
+	if len(test) == 0 {
 		return false
 	}
 
@@ -289,7 +295,7 @@ func IsFileContains(fpath string, test []byte) bool {
 			if testmatches {
 				return true
 			}
-		} // if first byte of test slice found
-	} // loop by whole file content
+		} // if first byte of test slice found.
+	} // loop by whole file content.
 	return false
 }
