@@ -28,7 +28,7 @@ func NewS3Object(path string) (S3Path, error) {
 	}
 
 	if bucketIdx >= len(fullPath)-1 {
-		return S3Path{}, ErrPathEmptyPath
+		return S3Path{}, ErrPathNoKey
 	}
 
 	return S3Path{
