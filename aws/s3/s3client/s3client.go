@@ -4,7 +4,7 @@ package s3client
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"sort"
 	"sync"
 	"time"
@@ -35,8 +35,8 @@ func NewClientFromS3(awsS3client *s3.S3) S3Client {
 	}
 }
 
-// Connection returns an AWS S3 connection that was used when creating the object.
-func (c *s3Client) Connection() *s3.S3 {
+// S3 returns an AWS S3 connection that was used when creating the object.
+func (c *s3Client) S3() *s3.S3 {
 	return c.awsS3
 }
 
@@ -58,7 +58,7 @@ func (c *s3Client) CreateBucket(bucket string) (string, error) {
 }
 
 // Get returns an S3 object in a byte array view.
-func (c *s3Client) GetObject(path S3ObjectPath, callerPays bool) ([]byte, error) {
+func (c *s3Client) GetObject(path S3Path, callerPays bool) ([]byte, error) {
 	params := &s3.GetObjectInput{
 		Bucket: aws.String(path.Bucket),
 		Key:    aws.String(path.Key),
@@ -73,14 +73,14 @@ func (c *s3Client) GetObject(path S3ObjectPath, callerPays bool) ([]byte, error)
 		return nil, err
 	}
 
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 // GetSize returns a size in bytes of the object.
-func (c *s3Client) GetSize(obj S3ObjectPath, callerPays bool) (int64, error) {
+func (c *s3Client) GetSize(path S3Path, callerPays bool) (int64, error) {
 	params := &s3.HeadObjectInput{
-		Bucket: aws.String(obj.Bucket),
-		Key:    aws.String(obj.Key),
+		Bucket: aws.String(path.Bucket),
+		Key:    aws.String(path.Key),
 	}
 
 	if callerPays {
@@ -96,10 +96,10 @@ func (c *s3Client) GetSize(obj S3ObjectPath, callerPays bool) (int64, error) {
 }
 
 // Exists returns true if S3 object exists.
-func (c *s3Client) Exists(obj S3ObjectPath) (bool, error) {
+func (c *s3Client) Exists(path S3Path) (bool, error) {
 	headParams := &s3.HeadObjectInput{
-		Bucket: aws.String(obj.Bucket),
-		Key:    aws.String(obj.Key),
+		Bucket: aws.String(path.Bucket),
+		Key:    aws.String(path.Key),
 	}
 
 	_, err := c.awsS3.HeadObject(headParams)
@@ -118,10 +118,10 @@ func (c *s3Client) Exists(obj S3ObjectPath) (bool, error) {
 }
 
 // Delete deletes an S3 object.
-func (c *s3Client) Delete(obj S3ObjectPath) error {
+func (c *s3Client) Delete(path S3Path) error {
 	params := &s3.DeleteObjectInput{
-		Bucket: aws.String(obj.Bucket),
-		Key:    aws.String(obj.Key),
+		Bucket: aws.String(path.Bucket),
+		Key:    aws.String(path.Key),
 	}
 
 	_, err := c.awsS3.DeleteObject(params)
@@ -141,12 +141,12 @@ func (c *s3Client) Delete(obj S3ObjectPath) error {
 
 // Copy copies source to destination and checks if required the result integrity
 // by comparing an ETag of source and destination.
-func (c *s3Client) Copy(src, dst S3ObjectPath, validateEtag, callerPays bool) error {
+func (c *s3Client) Copy(src, dst S3Path, validateEtag, callerPays bool) error {
 	return c.copyObject(src, dst, validateEtag, callerPays)
 }
 
 // copyObject copies source to destination.
-func (c *s3Client) copyObject(src, dst S3ObjectPath, validateEtag bool, callerPays bool) error {
+func (c *s3Client) copyObject(src, dst S3Path, validateEtag bool, callerPays bool) error {
 	srcSize, err := c.GetSize(src, callerPays)
 	if err != nil {
 		return err
@@ -205,7 +205,7 @@ func validateCopyResult(validateEtag bool, eTag string, copyResult *s3.CopyObjec
 }
 
 // IsSrcNewer returns true if source exist and newer thad destination, or when destination does not exist.
-func (c *s3Client) IsSrcNewer(src, dst S3ObjectPath, callerPays bool) (bool, error) {
+func (c *s3Client) IsSrcNewer(src, dst S3Path, callerPays bool) (bool, error) {
 	headParams := &s3.HeadObjectInput{
 		Bucket: aws.String(src.Bucket),
 		Key:    aws.String(src.Key),
@@ -239,29 +239,29 @@ func (c *s3Client) IsSrcNewer(src, dst S3ObjectPath, callerPays bool) (bool, err
 }
 
 // GetPresignedURL returns an S3 presigned URL for the given key.
-func (c *s3Client) GetPresignedURL(obj S3ObjectPath, duration time.Duration) (string, error) {
+func (c *s3Client) GetPresignedURL(path S3Path, duration time.Duration) (string, error) {
 	req, _ := c.awsS3.GetObjectRequest(&s3.GetObjectInput{
-		Bucket: aws.String(obj.Bucket),
-		Key:    aws.String(obj.Key),
+		Bucket: aws.String(path.Bucket),
+		Key:    aws.String(path.Key),
 	})
 
 	return req.Presign(duration)
 }
 
 // GetPresignedURL returns an S3 presigned URL for the given key.
-func (c *s3Client) GetETag(obj S3ObjectPath) (string, error) {
+func (c *s3Client) GetETag(path S3Path) (string, error) {
 	headInput := &s3.HeadObjectInput{
-		Bucket: aws.String(obj.Bucket),
-		Key:    aws.String(obj.Key),
+		Bucket: aws.String(path.Bucket),
+		Key:    aws.String(path.Key),
 	}
 
 	result, err := c.awsS3.HeadObject(headInput)
 	if err != nil {
-		return "", fmt.Errorf("error querying head for ETag %v : %w", obj, err)
+		return "", fmt.Errorf("error querying head for ETag %v : %w", path, err)
 	}
 
 	if result.ETag == nil {
-		return "", fmt.Errorf("head returned a nil ETag %v", obj)
+		return "", fmt.Errorf("head returned a nil ETag %v", path)
 	}
 
 	return *result.ETag, nil
@@ -276,7 +276,7 @@ func (a completedParts) Less(i, j int) bool { return *a[i].PartNumber < *a[j].Pa
 
 // nolint:funlen
 func (c *s3Client) copyMultipartInt(
-	src, dst S3ObjectPath,
+	src, dst S3Path,
 	srcSize int64,
 	chunkSize int64,
 	callerPays bool) error {

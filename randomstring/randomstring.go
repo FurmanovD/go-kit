@@ -164,7 +164,7 @@ func ToRandomCase(input string, rnd *rand.Rand) string {
 	}
 }
 
-/// Returns the nth item contained in the array of ranges.
+// Returns the nth item contained in the array of ranges.
 func getItemFromRangeTable(n int, tables []*unicode.RangeTable) (int, error) {
 	nPointer := n
 	var picked int
@@ -223,5 +223,7 @@ func notNilRand(rnd *rand.Rand) *rand.Rand {
 	if rnd != nil {
 		return rnd
 	}
+
+	// nolint:gosec
 	return rand.New(rand.NewSource(time.Now().UnixNano()))
 }

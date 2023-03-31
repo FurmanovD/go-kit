@@ -44,7 +44,7 @@ func copyFileInt(src, dst string, deletesrc bool) error {
 	// if err = os.Link(src, dst); err == nil {
 	// 	return err
 	// }
-	//TODO: in case "delete original" == true and src and dest are on the same volume - use os.Rename()
+	// TODO: in case "delete original" == true and src and dest are on the same volume - use os.Rename()
 	res := copyFileContents(src, dst)
 	if deletesrc {
 		os.Remove(src)
@@ -106,7 +106,10 @@ func copyFolderInt(source string, dest string, levels int, deletesource bool) er
 		}
 	}
 
-	copyFolderContentInt(source, fullDest, levels, deletesource)
+	err = copyFolderContentInt(source, fullDest, levels, deletesource)
+	if err != nil {
+		return err
+	}
 
 	if deletesource {
 		os.RemoveAll(source)
@@ -147,10 +150,10 @@ func copyFolderContentInt(source string, dest string, levelsDeeper int, deleteso
 				err = copyFolderInt(sourcefilepointer, destinationfilepointer, levelsDeeper, deletesource)
 			} else if 1 <= levelsDeeper { //some levels only - continue
 				err = copyFolderInt(sourcefilepointer, destinationfilepointer, levelsDeeper-1, deletesource)
-			} else {
-				// 0 == levelsDeeper - means "do not copy next levels"
-				// Do nothing
-			}
+			} // else
+			// 0 == levelsDeeper - means "do not copy next levels"
+			// Do nothing
+
 			if deletesource {
 				os.RemoveAll(source)
 			}
