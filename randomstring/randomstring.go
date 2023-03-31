@@ -223,5 +223,7 @@ func notNilRand(rnd *rand.Rand) *rand.Rand {
 	if rnd != nil {
 		return rnd
 	}
+
+	// nolint:gosec
 	return rand.New(rand.NewSource(time.Now().UnixNano()))
 }

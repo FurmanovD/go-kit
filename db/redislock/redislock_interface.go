@@ -9,13 +9,13 @@ import (
 
 // RedisLock describes a locker interface.
 type RedisLock interface {
-	Lock(ctx context.Context, key string, ttl time.Duration) RedisLockError
+	Lock(ctx context.Context, key string, ttl time.Duration) Error
 	ObtainLock(
 		ctx context.Context,
 		key string,
 		ttl time.Duration,
 		timeout time.Duration,
 		loopPeriod time.Duration,
-	) RedisLockError
-	Unlock() RedisLockError
+	) Error
+	Unlock() Error
 }
