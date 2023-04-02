@@ -24,17 +24,7 @@ func GeneratePostJSONContext(
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 
-	for key, val := range params {
-		valStr := fmt.Sprintf("%v", val)
-
-		c.Params = append(
-			c.Params,
-			gin.Param{
-				Key:   key,
-				Value: valStr,
-			},
-		)
-	}
+	c = addParams(c, params)
 
 	if c.Request == nil {
 		c.Request = httptest.NewRequest("POST", BuildURLWithParams(url, urlKeys), nil)
@@ -43,6 +33,7 @@ func GeneratePostJSONContext(
 	if c.Request.Header == nil {
 		c.Request.Header = make(http.Header)
 	}
+
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	jsonbytes, err := json.Marshal(postData)
@@ -50,6 +41,7 @@ func GeneratePostJSONContext(
 		return nil, nil, err
 	}
 	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(jsonbytes))
+
 	return w, c, nil
 }
 
@@ -64,29 +56,7 @@ func GenerateGetContext(
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 
-	for key, val := range urlKeys {
-		valStr := fmt.Sprintf("%v", val)
-
-		c.Params = append(
-			c.Params,
-			gin.Param{
-				Key:   key,
-				Value: valStr,
-			},
-		)
-	}
-
-	for key, val := range params {
-		valStr := fmt.Sprintf("%v", val)
-
-		c.Params = append(
-			c.Params,
-			gin.Param{
-				Key:   key,
-				Value: valStr,
-			},
-		)
-	}
+	c = addParams(addParams(c, urlKeys), params)
 
 	if c.Request == nil {
 		c.Request = httptest.NewRequest("GET", BuildURLWithParams(url, urlKeys), nil)
@@ -110,5 +80,20 @@ func BuildURLWithParams(url string, params map[string]interface{}) string {
 		urlWithParams.WriteString(amp + key + "=" + valStr)
 		amp = "&"
 	}
+
 	return urlWithParams.String()
+}
+
+func addParams(c *gin.Context, params map[string]interface{}) *gin.Context {
+	for key, val := range params {
+		c.Params = append(
+			c.Params,
+			gin.Param{
+				Key:   key,
+				Value: fmt.Sprintf("%v", val),
+			},
+		)
+	}
+
+	return c
 }

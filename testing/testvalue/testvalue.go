@@ -44,7 +44,6 @@ func RandInt8Flag() int8 {
 }
 
 func RandDecimalBig(allowNegative bool, beforeCommaDigits int, afterCommaDigits int) decimal.Big {
-
 	var before int
 	if beforeCommaDigits > 0 {
 		before = beforeCommaDigits
