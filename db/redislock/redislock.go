@@ -21,27 +21,27 @@ type lockInfo struct {
 }
 
 type redisLocker struct {
-	mutex  sync.Mutex
-	redis  *redis.Client
-	locked *lockInfo // saves all info to unlock. != nil means locked state
+	mutex   sync.Mutex
+	rclient *redis.Client
+	locked  *lockInfo // saves all info to unlock. != nil means locked state
 	//TODO(DF) possibly add a lock-count to allow the same locker lock the same key, e.g. to extend a lock TTL
 }
 
 func NewRedisLocker(c *redis.Client) RedisLock {
 	return &redisLocker{
-		redis: c,
+		rclient: c,
 	}
 }
 
-// Locks a redis record by creating a key with special name or returns an AlreadyLocked if such a key already exists
-func (rl *redisLocker) Lock(ctx context.Context, key string, ttl time.Duration) RedisLockError {
+// Locks a redis record by creating a key with special name or returns an ErrAlreadyLocked if such a key already exists
+func (rl *redisLocker) Lock(ctx context.Context, key string, ttl time.Duration) Error {
 
-	if rl == nil || rl.redis == nil {
-		return Uninitialized
+	if rl == nil || rl.rclient == nil {
+		return ErrUninitialized
 	}
 
 	if key == "" {
-		return EmptyKey
+		return ErrEmptyKey
 	}
 
 	rl.mutex.Lock()
@@ -57,14 +57,14 @@ func (rl *redisLocker) ObtainLock(
 	ttl time.Duration,
 	timeout time.Duration,
 	retryPeriod time.Duration,
-) RedisLockError {
+) Error {
 
-	if rl == nil || rl.redis == nil {
-		return Uninitialized
+	if rl == nil || rl.rclient == nil {
+		return ErrUninitialized
 	}
 
 	if key == "" {
-		return EmptyKey
+		return ErrEmptyKey
 	}
 
 	rl.mutex.Lock()
@@ -77,53 +77,53 @@ func (rl *redisLocker) ObtainLock(
 	for ; !now.After(timeoutTime); now = time.Now() {
 		tryRes := rl.tryLock(ctx, key, ttl)
 		switch tryRes {
-		case AlreadyLocked:
+		case ErrAlreadyLocked:
 			time.Sleep(retryPeriod)
 		default:
 			return tryRes
 		}
 	}
 	// if we reached this point, it means timeout is reached and another lock still not released
-	return AlreadyLocked
+	return ErrAlreadyLocked
 }
 
-func (rl *redisLocker) Unlock() RedisLockError {
+func (rl *redisLocker) Unlock() Error {
 
-	if rl == nil || rl.redis == nil {
-		return Uninitialized
+	if rl == nil || rl.rclient == nil {
+		return ErrUninitialized
 	}
 
 	rl.mutex.Lock()
 	defer rl.mutex.Unlock()
 
 	if rl.locked != nil && rl.locked.Key != "" {
-		rl.redis.Del(rl.locked.Ctx, rl.locked.Key)
+		rl.rclient.Del(rl.locked.Ctx, rl.locked.Key)
 	}
 	rl.locked = nil
 
-	return Ok
+	return nil
 }
 
 // tryLock actually locks the record.
 // ! No sync.
 // ! No parameters validation.
-func (rl *redisLocker) tryLock(ctx context.Context, key string, ttl time.Duration) RedisLockError {
+func (rl *redisLocker) tryLock(ctx context.Context, key string, ttl time.Duration) Error {
 
 	lockKey := lockKeyPrefix + key
 	if rl.locked != nil {
 		if rl.locked.Key != lockKey {
-			return UnlockRequired
+			return ErrUnlockRequired
 		}
-		return Ok
+		return nil
 	}
 
-	if setRes := rl.redis.SetNX(ctx, lockKey, lockValue, ttl); setRes.Val() {
+	if setRes := rl.rclient.SetNX(ctx, lockKey, lockValue, ttl); setRes.Val() {
 		rl.locked = &lockInfo{
 			Key: lockKey,
 			Ctx: ctx,
 		}
-		return Ok
+		return nil
 	}
 
-	return AlreadyLocked
+	return ErrAlreadyLocked
 }
