@@ -149,7 +149,7 @@ func copyFolderContentInt(source string, dest string, levelsDeeper int, deleteso
 		sourcefilepointer := source + "/" + obj.Name()
 		destinationfilepointer := dest + "/" + obj.Name()
 		if obj.IsDir() {
-			if 0 > levelsDeeper { // recursively all.
+			if levelsDeeper < 0 { // recursively all.
 				err = copyFolderInt(sourcefilepointer, destinationfilepointer, levelsDeeper, deletesource)
 			} else if 1 <= levelsDeeper { // some levels only - continue.
 				err = copyFolderInt(sourcefilepointer, destinationfilepointer, levelsDeeper-1, deletesource)
