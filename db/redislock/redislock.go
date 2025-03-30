@@ -14,6 +14,10 @@ const (
 	lockKeyPrefix = "lock-"
 )
 
+type clock interface {
+	Now() time.Time
+}
+
 // lockInfo represents an info to unlock.
 type lockInfo struct {
 	Key string
@@ -23,13 +27,15 @@ type lockInfo struct {
 type redisLocker struct {
 	mutex   sync.Mutex
 	rclient *redis.Client
+	clock   clock
 	locked  *lockInfo // saves all info to unlock. != nil means locked state
 	//TODO(DF) possibly add a lock-count to allow the same locker lock the same key, e.g. to extend a lock TTL
 }
 
-func NewRedisLocker(c *redis.Client) RedisLock {
+func NewRedisLocker(c *redis.Client, clk clock) RedisLock {
 	return &redisLocker{
 		rclient: c,
+		clock:   clk,
 	}
 }
 
@@ -70,18 +76,17 @@ func (rl *redisLocker) ObtainLock(
 	rl.mutex.Lock()
 	defer rl.mutex.Unlock()
 
-	now := time.Now()
+	now := rl.clock.Now()
 	timeoutTime := now.Add(timeout)
+
 	// use now variable and !now.After condition to make sure at least one try is done
 	// even in case 0 timeout is received
 	for ; !now.After(timeoutTime); now = time.Now() {
 		tryRes := rl.tryLock(ctx, key, ttl)
-		switch tryRes {
-		case ErrAlreadyLocked:
-			time.Sleep(retryPeriod)
-		default:
+		if tryRes != ErrAlreadyLocked {
 			return tryRes
 		}
+		time.Sleep(retryPeriod)
 	}
 	// if we reached this point, it means timeout is reached and another lock still not released
 	return ErrAlreadyLocked
