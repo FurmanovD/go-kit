@@ -6,10 +6,10 @@ import (
 )
 
 // JSONTime takes in account golang time can be an zero/empty and marshals it to an empty string
-// instead of "0001-01-01T00:00:00Z"
+// instead of "0001-01-01T00:00:00Z" and vice versa.
 type JSONTime time.Time
 
-// MarshalJSON marshals a zeop time to an empty string
+// MarshalJSON marshals a zeop time to an empty string.
 func (t JSONTime) MarshalJSON() ([]byte, error) {
 	timeVal := time.Time(t)
 	if timeVal.IsZero() {
@@ -19,7 +19,7 @@ func (t JSONTime) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + timeVal.Format(time.RFC3339Nano) + `"`), nil
 }
 
-// UnmarshalJSON unmarshals an empty string and 'mull' to a zero time value
+// UnmarshalJSON unmarshals an empty string and 'mull' to a zero time value.
 func (t *JSONTime) UnmarshalJSON(b []byte) error {
 
 	s := strings.Trim(string(b), "`'\" ")
@@ -38,4 +38,8 @@ func (t *JSONTime) UnmarshalJSON(b []byte) error {
 
 func Now() JSONTime {
 	return JSONTime(time.Now().UTC())
+}
+
+func (t JSONTime) Time() time.Time {
+	return time.Time(t)
 }
