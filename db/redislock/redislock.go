@@ -18,18 +18,23 @@ type clock interface {
 	Now() time.Time
 }
 
+type redisClient interface {
+	SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.BoolCmd
+	Del(ctx context.Context, keys ...string) *redis.IntCmd
+}
+
 type redisLocker struct {
 	mutex   sync.Mutex
-	rclient *redis.Client
+	rclient redisClient
 	key     string
 	clock   clock
 	locked  bool
 	//TODO(DF) possibly add a lock-count to allow the same locker lock the same key, e.g. to extend a lock TTL
 }
 
-func NewRedisLocker(c *redis.Client, key string, clk clock) RedisLock {
+func NewRedisLocker(rc redisClient, key string, clk clock) RedisLock {
 	return &redisLocker{
-		rclient: c,
+		rclient: rc,
 		key:     key,
 		clock:   clk,
 	}
