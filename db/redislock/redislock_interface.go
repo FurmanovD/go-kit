@@ -1,3 +1,4 @@
+//go:generate mockery --with-expecter --name=RedisLock --testonly --inpackage --filename=redislock_mock.go
 package redislock
 
 import (
