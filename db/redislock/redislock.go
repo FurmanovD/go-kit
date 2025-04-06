@@ -106,7 +106,7 @@ func (rl *redisLocker) Unlock(ctx context.Context) Error {
 	defer rl.mutex.Unlock()
 
 	if rl.locked {
-		rl.rclient.Del(ctx, rl.key)
+		rl.rclient.Del(ctx, lockKeyPrefix+rl.key)
 	}
 	rl.locked = false
 
